@@ -4,37 +4,60 @@ import websocket
 import time
 import threading
 import datetime
+import Config
 heart_beat_time=0
-header={
+token=f"Bot {str(Config.appid)}.{Config.token}"
+session_id=""
+header={#common header
     "Content-Type": "application/json",
-    "Authorization": "Bot 102072390.Jsb7oWr0V2yF2FnOmNpJQLdYym5VElKf"
+    "Authorization": token
 }
-auth={
+auth={#login
     "op": 2,
     "d": {
-        "token": "Bot 102072390.Jsb7oWr0V2yF2FnOmNpJQLdYym5VElKf",
-        "intents": 1073745920
+        "token": token,
+        "intents": 1677726721#私域全部1946162689公域全部1677726721
     }
 }
 def on_open(wsapp):
     print(f"[LOG time:{str(datetime.datetime.now()).split('.')[0]}]System Event:"+"on_open")
 def on_close(wsapp):
     print(f"[LOG time:{str(datetime.datetime.now()).split('.')[0]}]System Event:"+"on_close")
-    data={
-        "op": 6,
-        "d": {
-        "token": "my_token",
-        "session_id": "session_id_i_stored",
-        "seq": 1337
-        }
-    }
-    wsapp.send(json.dumps(data))
 def on_bot_msg(type1,channel_id,guild_id,sender_id,sender_name,msg,msg_id,re_id):
-    if(type1=="DIRECT_MESSAGE_CREATE"):#私聊
+    if(type1=="DIRECT_MESSAGE_CREATE"):#私聊Todo
         print(f"[LOG time:{str(datetime.datetime.now()).split('.')[0]}]Robot Event:"+"DM")
-    if(type1=="AT_MESSAGE_CREATE"):
+    if(type1=="AT_MESSAGE_CREATE"):#已完成部分
         if("/菜单" in msg):
             data = {"content":"已经收到您的菜单请求啦~","msg_id":msg_id,"message_reference":{"message_id":re_id}}
+            url = 'https://sandbox.api.sgroup.qq.com/channels/'+channel_id+'/messages'
+            print(f"[LOG time:{str(datetime.datetime.now()).split('.')[0]}]System Api Result:"+"Api_Result:"+requests.post(url=url,data=json.dumps(data),headers=header).text)
+        if("获取频道列表" in msg):
+            url="https://sandbox.api.sgroup.qq.com/users/@me/guilds"
+            result = requests.get(url,headers=header).text
+            alls=""
+            for re in json.loads(result):
+                alls+="\n"
+                alls+=f"[{re['id']}]{re['name']}\n所有者ID:{re['owner_id']}\n人数{re['member_count']}/{re['max_members']}\n__________________________________\n"
+            data = {"content":alls,"msg_id":msg_id,"message_reference":{"message_id":re_id}}
+            url = 'https://sandbox.api.sgroup.qq.com/channels/'+channel_id+'/messages'
+            print(f"[LOG time:{str(datetime.datetime.now()).split('.')[0]}]System Api Result:"+"Api_Result:"+requests.post(url=url,data=json.dumps(data),headers=header).text)
+        if('获取子频道列表 ' in msg):#未生效_ToFix
+            try:
+                guild_id=str(msg).split(' ')[1]
+            except:
+                data = {"content":"出现错误","msg_id":msg_id,"message_reference":{"message_id":re_id}}
+                url = 'https://sandbox.api.sgroup.qq.com/channels/'+channel_id+'/messages'
+                print(f"[LOG time:{str(datetime.datetime.now()).split('.')[0]}]System Api Result:"+"Api_Result:"+requests.post(url=url,data=json.dumps(data),headers=header).text)
+            if(guild_id == ""):
+                data = {"content":"频道ID为空","msg_id":msg_id,"message_reference":{"message_id":re_id}}
+                url = 'https://sandbox.api.sgroup.qq.com/channels/'+channel_id+'/messages'
+                print(f"[LOG time:{str(datetime.datetime.now()).split('.')[0]}]System Api Result:"+"Api_Result:"+requests.post(url=url,data=json.dumps(data),headers=header).text)
+            url="https://sandbox.api.sgroup.qq.com/guilds/"+guild_id+"/channels"
+            result = requests.get(url,headers=header).text
+            alls=""
+            for re in json.loads(result):
+                alls+=f"\n[{re['id']}({re['guild_id']})]{re['name']}|type:{re['type']}|position:{re['position']}/{json.loads(result)}"
+            data = {"content":alls,"msg_id":msg_id,"message_reference":{"message_id":re_id}}
             url = 'https://sandbox.api.sgroup.qq.com/channels/'+channel_id+'/messages'
             print(f"[LOG time:{str(datetime.datetime.now()).split('.')[0]}]System Api Result:"+"Api_Result:"+requests.post(url=url,data=json.dumps(data),headers=header).text)
 def on_message(wsapp, message):
@@ -50,6 +73,8 @@ def on_message(wsapp, message):
                 wsapp.send(json.dumps({"op": 1,"d": 251}))
         threading.Thread(target=heart_beat).start()
     if(msg['op']==0):
+        if(msg['t']=="READY"):
+            session_id=msg['d']['session_id']
         on_bot_msg(msg["t"],msg['d']["channel_id"],msg['d']["guild_id"],msg['d']["author"]["id"],msg['d']["author"]["username"],msg["d"]["content"],msg['id'],msg['d']['id'])
     if(msg['op']==11):
         print(f"[LOG time:{str(datetime.datetime.now()).split('.')[0]}]System Event:"+"Heart_Beat_ACK")
